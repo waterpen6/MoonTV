@@ -151,6 +151,71 @@ const removeVerticalVideoOptimization = () => {
   }
 };
 
+// 应用强制竖屏模式样式
+const applyVerticalForceMode = () => {
+  // 服务端渲染时不执行
+  if (typeof document === 'undefined') return;
+
+  try {
+    const style = document.createElement('style');
+    style.id = 'vertical-force-mode';
+    style.textContent = `
+      /* 强制竖屏模式样式 */
+      @media (max-width: 768px) {
+        .art-fullscreen-web.vertical-force-mode .art-video {
+          transform: rotate(90deg) !important;
+          transform-origin: center center !important;
+          width: 100vh !important;
+          height: 100vw !important;
+          object-fit: cover !important;
+          position: absolute !important;
+          top: 50% !important;
+          left: 50% !important;
+          margin-left: -50vh !important;
+          margin-top: -50vw !important;
+        }
+        
+        .art-fullscreen-web.vertical-force-mode .art-video-player {
+          transform: none !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+        }
+        
+        .art-fullscreen-web.vertical-force-mode {
+          background: #000 !important;
+        }
+      }
+    `;
+
+    // 移除旧样式，添加新样式
+    const existingStyle = document.getElementById('vertical-force-mode');
+    if (existingStyle) {
+      existingStyle.remove();
+    }
+    document.head.appendChild(style);
+    console.log('强制竖屏模式样式已应用');
+  } catch (error) {
+    console.warn('应用强制竖屏模式样式失败:', error);
+  }
+};
+
+// 移除强制竖屏模式样式
+const removeVerticalForceMode = () => {
+  // 服务端渲染时不执行
+  if (typeof document === 'undefined') return;
+
+  try {
+    const existingStyle = document.getElementById('vertical-force-mode');
+    if (existingStyle) {
+      existingStyle.remove();
+      console.log('强制竖屏模式样式已移除');
+    }
+  } catch (error) {
+    console.warn('移除强制竖屏模式样式失败:', error);
+  }
+};
+
 function PlayPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -307,6 +372,7 @@ function PlayPageClient() {
   // 视频方向状态
   const [isVerticalVideo, setIsVerticalVideo] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [isVerticalForceMode, setIsVerticalForceMode] = useState(false);
 
   // 播放进度保存相关
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -318,6 +384,31 @@ function PlayPageClient() {
   // -----------------------------------------------------------------------------
   // 播放源优选函数
   // -----------------------------------------------------------------------------
+
+  // 切换强制竖屏模式
+  const toggleVerticalForceMode = () => {
+    if (!isMobileDevice) return; // 仅在移动设备上生效
+    
+    const newMode = !isVerticalForceMode;
+    setIsVerticalForceMode(newMode);
+    
+    // 应用或移除样式
+    if (newMode) {
+      applyVerticalForceMode();
+      // 添加CSS类到播放器容器
+      if (artRef.current) {
+        artRef.current.classList.add('vertical-force-mode');
+      }
+      console.log('已开启强制竖屏模式');
+    } else {
+      removeVerticalForceMode();
+      // 移除CSS类
+      if (artRef.current) {
+        artRef.current.classList.remove('vertical-force-mode');
+      }
+      console.log('已关闭强制竖屏模式');
+    }
+  };
 
   // 播放源优选函数
   const preferBestSource = async (
@@ -1371,6 +1462,8 @@ function PlayPageClient() {
       artPlayerRef.current = null;
       // 清理竖屏视频优化样式
       removeVerticalVideoOptimization();
+      // 清理强制竖屏模式样式
+      removeVerticalForceMode();
     }
 
     try {
@@ -1577,6 +1670,28 @@ function PlayPageClient() {
               handleNextEpisode();
             },
           },
+          // 竖屏播放按钮（仅移动设备显示）
+          ...(isMobileDevice ? [{
+            position: 'right',
+            index: 20,
+            name: 'verticalMode',
+            html: `<i class="art-icon flex"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="6" y="3" width="10" height="16" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+              <path d="M9 7l2.5 2L9 11" stroke="currentColor" stroke-width="1.5" fill="none"/>
+              <path d="M13 11l-2.5 2L13 15" stroke="currentColor" stroke-width="1.5" fill="none"/>
+            </svg></i>`,
+            tooltip: isVerticalForceMode ? '退出竖屏模式' : '强制竖屏播放',
+            style: {
+              color: isVerticalForceMode ? '#22c55e' : 'inherit'
+            },
+            click: function () {
+              toggleVerticalForceMode();
+              // 更新按钮样式和提示
+              this.tooltip = isVerticalForceMode ? '退出竖屏模式' : '强制竖屏播放';
+              this.style.color = isVerticalForceMode ? '#22c55e' : 'inherit';
+              return isVerticalForceMode ? '已开启竖屏模式' : '已关闭竖屏模式';
+            },
+          }] : []),
         ],
       });
 
@@ -1615,6 +1730,16 @@ function PlayPageClient() {
             // 退出全屏时，解锁屏幕方向
             unlockOrientation();
           }
+        }
+
+        // 处理强制竖屏模式：退出全屏时重置状态
+        if (!fullscreen && isVerticalForceMode) {
+          setIsVerticalForceMode(false);
+          removeVerticalForceMode();
+          if (artRef.current) {
+            artRef.current.classList.remove('vertical-force-mode');
+          }
+          console.log('退出全屏，已重置竖屏强制模式');
         }
       });
 
@@ -1765,6 +1890,8 @@ function PlayPageClient() {
       }
       // 清理竖屏视频优化样式
       removeVerticalVideoOptimization();
+      // 清理强制竖屏模式样式
+      removeVerticalForceMode();
     };
   }, []);
 
