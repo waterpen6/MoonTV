@@ -36,29 +36,94 @@ declare global {
 }
 
 // 工具函数（组件外部定义，避免重复创建）
-// 暂时注释掉以避免ESLint警告，待修复循环渲染问题后重新启用
-// const detectMobileDevice = (): boolean => {
-//   if (typeof window === 'undefined') return false;
-//
-//   // 检测用户代理
-//   const userAgent = navigator.userAgent.toLowerCase();
-//   const mobileKeywords = ['android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone'];
-//   const isMobileUA = mobileKeywords.some(keyword => userAgent.includes(keyword));
-//
-//   // 检测屏幕尺寸（移动设备通常小于768px）
-//   const isMobileScreen = window.innerWidth < 768;
-//
-//   // 检测触摸支持
-//   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-//
-//   return isMobileUA || (isMobileScreen && isTouchDevice);
-// };
+// 检测移动设备
+const detectMobileDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+
+  // 检测用户代理
+  const userAgent = navigator.userAgent.toLowerCase();
+  const mobileKeywords = ['android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone'];
+  const isMobileUA = mobileKeywords.some(keyword => userAgent.includes(keyword));
+
+  // 检测屏幕尺寸（移动设备通常小于768px）
+  const isMobileScreen = window.innerWidth < 768;
+
+  // 检测触摸支持
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+  return isMobileUA || (isMobileScreen && isTouchDevice);
+};
 
 // 检测视频是否为竖屏
-// const detectVerticalVideo = (video: HTMLVideoElement): boolean => {
-//   if (!video || !video.videoWidth || !video.videoHeight) return false;
-//   return video.videoHeight > video.videoWidth;
-// };
+const detectVerticalVideo = (video: HTMLVideoElement): boolean => {
+  if (!video || !video.videoWidth || !video.videoHeight) return false;
+  return video.videoHeight > video.videoWidth;
+};
+
+// 应用竖屏视频优化
+const applyVerticalVideoOptimization = () => {
+  // 为竖屏视频在移动设备上添加特殊样式
+  const style = document.createElement('style');
+  style.id = 'vertical-video-optimization';
+  style.textContent = `
+    @media (max-width: 768px) {
+      .art-fullscreen-web .art-video-player {
+        transform: none !important;
+      }
+      .art-fullscreen-web .art-video {
+        object-fit: cover !important;
+        width: 100vw !important;
+        height: 100vh !important;
+      }
+      .art-fullscreen-web {
+        background: #000 !important;
+      }
+    }
+  `;
+
+  // 移除旧的样式，添加新的
+  const existingStyle = document.getElementById('vertical-video-optimization');
+  if (existingStyle) {
+    existingStyle.remove();
+  }
+  document.head.appendChild(style);
+};
+
+// 尝试锁定屏幕方向为竖屏（仅对竖屏视频）
+const lockPortraitOrientation = async () => {
+  try {
+    // 使用类型断言避免TypeScript类型冲突  
+    const screenAny = screen as any;
+    if (screenAny.orientation && screenAny.orientation.lock) {
+      await screenAny.orientation.lock('portrait');
+      console.log('已锁定屏幕方向为竖屏');
+    }
+  } catch (error) {
+    console.log('屏幕方向锁定失败，可能不被支持:', error);
+  }
+};
+
+// 解锁屏幕方向
+const unlockOrientation = () => {
+  try {
+    // 使用类型断言避免TypeScript类型冲突
+    const screenAny = screen as any;
+    if (screenAny.orientation && screenAny.orientation.unlock) {
+      screenAny.orientation.unlock();
+      console.log('已解锁屏幕方向');
+    }
+  } catch (error) {
+    console.log('屏幕方向解锁失败:', error);
+  }
+};
+
+// 移除竖屏视频优化样式
+const removeVerticalVideoOptimization = () => {
+  const existingStyle = document.getElementById('vertical-video-optimization');
+  if (existingStyle) {
+    existingStyle.remove();
+  }
+};
 
 function PlayPageClient() {
   const router = useRouter();
@@ -213,9 +278,9 @@ function PlayPageClient() {
     'initing' | 'sourceChanging'
   >('initing');
 
-  // 视频方向状态（暂时未使用，用下划线前缀避免ESLint警告）
-  const [_isVerticalVideo, _setIsVerticalVideo] = useState(false);
-  const [_isMobileDevice, _setIsMobileDevice] = useState(false);
+  // 视频方向状态
+  const [isVerticalVideo, setIsVerticalVideo] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
 
   // 播放进度保存相关
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -225,78 +290,8 @@ function PlayPageClient() {
   const artRef = useRef<HTMLDivElement | null>(null);
 
   // -----------------------------------------------------------------------------
-  // 工具函数（Utils）
+  // 播放源优选函数
   // -----------------------------------------------------------------------------
-
-  // 暂时注释掉以避免ESLint警告，待修复循环渲染问题后重新启用
-  // 应用竖屏视频优化
-  // const applyVerticalVideoOptimization = () => {
-  //   if (!_isMobileDevice || !_isVerticalVideo) return;
-
-  //   // 为竖屏视频在移动设备上添加特殊样式
-  //   const style = document.createElement('style');
-  //   style.id = 'vertical-video-optimization';
-  //   style.textContent = `
-  //     @media (max-width: 768px) {
-  //       .art-fullscreen-web .art-video-player {
-  //         transform: none !important;
-  //       }
-  //       .art-fullscreen-web .art-video {
-  //         object-fit: cover !important;
-  //         width: 100vw !important;
-  //         height: 100vh !important;
-  //       }
-  //       .art-fullscreen-web {
-  //         background: #000 !important;
-  //       }
-  //     }
-  //   `;
-
-  //   // 移除旧的样式，添加新的
-  //   const existingStyle = document.getElementById('vertical-video-optimization');
-  //   if (existingStyle) {
-  //     existingStyle.remove();
-  //   }
-  //   document.head.appendChild(style);
-  // };
-
-  // 尝试锁定屏幕方向为竖屏（仅对竖屏视频）
-  // const lockPortraitOrientation = async () => {
-  //   if (!_isMobileDevice || !_isVerticalVideo) return;
-
-  //   try {
-  //     // 使用类型断言避免TypeScript类型冲突  
-  //     const screenAny = screen as any;
-  //     if (screenAny.orientation && screenAny.orientation.lock) {
-  //       await screenAny.orientation.lock('portrait');
-  //       console.log('已锁定屏幕方向为竖屏');
-  //     }
-  //   } catch (error) {
-  //     console.log('屏幕方向锁定失败，可能不被支持:', error);
-  //   }
-  // };
-
-  // 解锁屏幕方向
-  // const unlockOrientation = () => {
-  //   try {
-  //     // 使用类型断言避免TypeScript类型冲突
-  //     const screenAny = screen as any;
-  //     if (screenAny.orientation && screenAny.orientation.unlock) {
-  //       screenAny.orientation.unlock();
-  //       console.log('已解锁屏幕方向');
-  //     }
-  //   } catch (error) {
-  //     console.log('屏幕方向解锁失败:', error);
-  //   }
-  // };
-
-  // 移除竖屏视频优化样式
-  // const removeVerticalVideoOptimization = () => {
-  //   const existingStyle = document.getElementById('vertical-video-optimization');
-  //   if (existingStyle) {
-  //     existingStyle.remove();
-  //   }
-  // };
 
   // 播放源优选函数
   const preferBestSource = async (
@@ -695,12 +690,11 @@ function PlayPageClient() {
 
   // 检测移动设备
   useEffect(() => {
-    // 暂时注释掉以避免循环渲染问题
-    // if (typeof window !== 'undefined') {
-    //   const isMobile = detectMobileDevice();
-    //   setIsMobileDevice(isMobile);
-    //   console.log('移动设备检测结果:', isMobile);
-    // }
+    if (typeof window !== 'undefined') {
+      const isMobile = detectMobileDevice();
+      setIsMobileDevice(isMobile);
+      console.log('移动设备检测结果:', isMobile);
+    }
   }, []);
 
   // 进入页面时直接获取全部源信息
@@ -1319,25 +1313,24 @@ function PlayPageClient() {
       }
 
       // 重新检测视频方向（延迟一下等待视频元数据加载）
-      // 暂时注释掉以避免循环渲染问题
-      // setTimeout(() => {
-      //   const video = artPlayerRef.current?.video;
-      //   if (video && video.videoWidth && video.videoHeight) {
-      //     const isVertical = detectVerticalVideo(video);
-      //     setIsVerticalVideo(isVertical);
-      //     console.log('换源后视频方向检测:', {
-      //       宽度: video.videoWidth,
-      //       高度: video.videoHeight,
-      //       竖屏: isVertical
-      //     });
-      //
-      //     if (isMobileDevice && isVertical) {
-      //       applyVerticalVideoOptimization();
-      //     } else {
-      //       removeVerticalVideoOptimization();
-      //     }
-      //   }
-      // }, 500);
+      setTimeout(() => {
+        const video = artPlayerRef.current?.video;
+        if (video && video.videoWidth && video.videoHeight) {
+          const isVertical = detectVerticalVideo(video);
+          setIsVerticalVideo(isVertical);
+          console.log('换源后视频方向检测:', {
+            宽度: video.videoWidth,
+            高度: video.videoHeight,
+            竖屏: isVertical
+          });
+
+          if (isMobileDevice && isVertical) {
+            applyVerticalVideoOptimization();
+          } else {
+            removeVerticalVideoOptimization();
+          }
+        }
+      }, 500);
 
       return;
     }
@@ -1351,7 +1344,7 @@ function PlayPageClient() {
       artPlayerRef.current.destroy();
       artPlayerRef.current = null;
       // 清理竖屏视频优化样式
-      // removeVerticalVideoOptimization();
+      removeVerticalVideoOptimization();
     }
 
     try {
@@ -1567,39 +1560,37 @@ function PlayPageClient() {
       });
 
       // 监听视频元数据加载完成事件，检测视频方向
-      // 暂时注释掉以避免循环渲染问题
-      // artPlayerRef.current.on('video:loadedmetadata', () => {
-      //   const video = artPlayerRef.current?.video;
-      //   if (video) {
-      //     const isVertical = detectVerticalVideo(video);
-      //     setIsVerticalVideo(isVertical);
-      //     console.log('视频方向检测结果:', {
-      //       宽度: video.videoWidth,
-      //       高度: video.videoHeight,
-      //       竖屏: isVertical,
-      //       移动设备: isMobileDevice
-      //     });
-      //
-      //     // 如果是移动设备上的竖屏视频，应用优化
-      //     if (isMobileDevice && isVertical) {
-      //       applyVerticalVideoOptimization();
-      //     }
-      //   }
-      // });
+      artPlayerRef.current.on('video:loadedmetadata', () => {
+        const video = artPlayerRef.current?.video;
+        if (video) {
+          const isVertical = detectVerticalVideo(video);
+          setIsVerticalVideo(isVertical);
+          console.log('视频方向检测结果:', {
+            宽度: video.videoWidth,
+            高度: video.videoHeight,
+            竖屏: isVertical,
+            移动设备: isMobileDevice
+          });
+
+          // 如果是移动设备上的竖屏视频，应用优化
+          if (isMobileDevice && isVertical) {
+            applyVerticalVideoOptimization();
+          }
+        }
+      });
 
       // 监听全屏状态变化，处理竖屏视频的屏幕方向
-      // 暂时注释掉以避免循环渲染问题
-      // artPlayerRef.current.on('fullscreen', (fullscreen: boolean) => {
-      //   if (isMobileDevice && isVerticalVideo) {
-      //     if (fullscreen) {
-      //       // 进入全屏时，对竖屏视频尝试锁定竖屏方向
-      //       lockPortraitOrientation();
-      //     } else {
-      //       // 退出全屏时，解锁屏幕方向
-      //       unlockOrientation();
-      //     }
-      //   }
-      // });
+      artPlayerRef.current.on('fullscreen', (fullscreen: boolean) => {
+        if (isMobileDevice && isVerticalVideo) {
+          if (fullscreen) {
+            // 进入全屏时，对竖屏视频尝试锁定竖屏方向
+            lockPortraitOrientation();
+          } else {
+            // 退出全屏时，解锁屏幕方向
+            unlockOrientation();
+          }
+        }
+      });
 
       artPlayerRef.current.on('video:volumechange', () => {
         lastVolumeRef.current = artPlayerRef.current.volume;
@@ -1747,7 +1738,7 @@ function PlayPageClient() {
         clearInterval(saveIntervalRef.current);
       }
       // 清理竖屏视频优化样式
-      // removeVerticalVideoOptimization();
+      removeVerticalVideoOptimization();
     };
   }, []);
 
