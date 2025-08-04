@@ -33,13 +33,6 @@ declare global {
     hls?: any;
   }
 
-  // Screen Orientation API 类型声明
-  interface Screen {
-    orientation?: {
-      lock(orientation: string): Promise<void>;
-      unlock(): void;
-    };
-  }
 }
 
 // 工具函数（组件外部定义，避免重复创建）
@@ -272,8 +265,10 @@ function PlayPageClient() {
   //   if (!_isMobileDevice || !_isVerticalVideo) return;
 
   //   try {
-  //     if (screen.orientation && screen.orientation.lock) {
-  //       await screen.orientation.lock('portrait');
+  //     // 使用类型断言避免TypeScript类型冲突  
+  //     const screenAny = screen as any;
+  //     if (screenAny.orientation && screenAny.orientation.lock) {
+  //       await screenAny.orientation.lock('portrait');
   //       console.log('已锁定屏幕方向为竖屏');
   //     }
   //   } catch (error) {
@@ -284,8 +279,10 @@ function PlayPageClient() {
   // 解锁屏幕方向
   // const unlockOrientation = () => {
   //   try {
-  //     if (screen.orientation && screen.orientation.unlock) {
-  //       screen.orientation.unlock();
+  //     // 使用类型断言避免TypeScript类型冲突
+  //     const screenAny = screen as any;
+  //     if (screenAny.orientation && screenAny.orientation.unlock) {
+  //       screenAny.orientation.unlock();
   //       console.log('已解锁屏幕方向');
   //     }
   //   } catch (error) {
