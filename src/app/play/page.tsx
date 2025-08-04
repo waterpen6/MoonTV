@@ -160,32 +160,35 @@ const applyVerticalForceMode = () => {
     const style = document.createElement('style');
     style.id = 'vertical-force-mode';
     style.textContent = `
-      /* 强制竖屏模式样式 */
+      /* 强制竖屏模式样式 - 旋转整个播放器容器 */
       @media (max-width: 768px) {
-        .art-fullscreen-web.vertical-force-mode .art-video {
-          transform: rotate(-90deg) !important;
+        /* 旋转整个播放器容器，模拟横屏设备 */
+        .art-fullscreen-web.vertical-force-mode {
+          transform: rotate(90deg) !important;
           transform-origin: center center !important;
           width: 100vh !important;
           height: 100vw !important;
-          object-fit: contain !important;
-          position: absolute !important;
+          position: fixed !important;
           top: 50% !important;
           left: 50% !important;
-          margin-left: -50vh !important;
-          margin-top: -50vw !important;
-        }
-        
-        .art-fullscreen-web.vertical-force-mode .art-video-player {
-          transform: none !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          overflow: hidden !important;
-        }
-        
-        .art-fullscreen-web.vertical-force-mode {
+          margin: -50vw 0 0 -50vh !important;
           background: #000 !important;
-          overflow: hidden !important;
+          z-index: 2147483647 !important;
+        }
+        
+        /* 视频元素保持默认行为，适配旋转后的容器 */
+        .art-fullscreen-web.vertical-force-mode .art-video {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: contain !important;
+          transform: none !important;
+        }
+        
+        /* 播放器容器适配 */
+        .art-fullscreen-web.vertical-force-mode .art-video-player {
+          width: 100% !important;
+          height: 100% !important;
+          transform: none !important;
         }
       }
     `;
