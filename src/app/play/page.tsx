@@ -38,20 +38,26 @@ declare global {
 // 工具函数（组件外部定义，避免重复创建）
 // 检测移动设备
 const detectMobileDevice = (): boolean => {
-  if (typeof window === 'undefined') return false;
+  // 服务端渲染时返回false
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
 
-  // 检测用户代理
-  const userAgent = navigator.userAgent.toLowerCase();
-  const mobileKeywords = ['android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone'];
-  const isMobileUA = mobileKeywords.some(keyword => userAgent.includes(keyword));
+  try {
+    // 检测用户代理
+    const userAgent = navigator.userAgent.toLowerCase();
+    const mobileKeywords = ['android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone'];
+    const isMobileUA = mobileKeywords.some(keyword => userAgent.includes(keyword));
 
-  // 检测屏幕尺寸（移动设备通常小于768px）
-  const isMobileScreen = window.innerWidth < 768;
+    // 检测屏幕尺寸（移动设备通常小于768px）
+    const isMobileScreen = window.innerWidth < 768;
 
-  // 检测触摸支持
-  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    // 检测触摸支持
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-  return isMobileUA || (isMobileScreen && isTouchDevice);
+    return isMobileUA || (isMobileScreen && isTouchDevice);
+  } catch (error) {
+    console.warn('移动设备检测失败:', error);
+    return false;
+  }
 };
 
 // 检测视频是否为竖屏
@@ -62,35 +68,45 @@ const detectVerticalVideo = (video: HTMLVideoElement): boolean => {
 
 // 应用竖屏视频优化
 const applyVerticalVideoOptimization = () => {
-  // 为竖屏视频在移动设备上添加特殊样式
-  const style = document.createElement('style');
-  style.id = 'vertical-video-optimization';
-  style.textContent = `
-    @media (max-width: 768px) {
-      .art-fullscreen-web .art-video-player {
-        transform: none !important;
-      }
-      .art-fullscreen-web .art-video {
-        object-fit: cover !important;
-        width: 100vw !important;
-        height: 100vh !important;
-      }
-      .art-fullscreen-web {
-        background: #000 !important;
-      }
-    }
-  `;
+  // 服务端渲染时不执行
+  if (typeof document === 'undefined') return;
 
-  // 移除旧的样式，添加新的
-  const existingStyle = document.getElementById('vertical-video-optimization');
-  if (existingStyle) {
-    existingStyle.remove();
+  try {
+    // 为竖屏视频在移动设备上添加特殊样式
+    const style = document.createElement('style');
+    style.id = 'vertical-video-optimization';
+    style.textContent = `
+      @media (max-width: 768px) {
+        .art-fullscreen-web .art-video-player {
+          transform: none !important;
+        }
+        .art-fullscreen-web .art-video {
+          object-fit: cover !important;
+          width: 100vw !important;
+          height: 100vh !important;
+        }
+        .art-fullscreen-web {
+          background: #000 !important;
+        }
+      }
+    `;
+
+    // 移除旧的样式，添加新的
+    const existingStyle = document.getElementById('vertical-video-optimization');
+    if (existingStyle) {
+      existingStyle.remove();
+    }
+    document.head.appendChild(style);
+  } catch (error) {
+    console.warn('竖屏视频优化样式应用失败:', error);
   }
-  document.head.appendChild(style);
 };
 
 // 尝试锁定屏幕方向为竖屏（仅对竖屏视频）
 const lockPortraitOrientation = async () => {
+  // 服务端渲染时不执行
+  if (typeof window === 'undefined' || typeof screen === 'undefined') return;
+
   try {
     // 使用类型断言避免TypeScript类型冲突  
     const screenAny = screen as any;
@@ -105,6 +121,9 @@ const lockPortraitOrientation = async () => {
 
 // 解锁屏幕方向
 const unlockOrientation = () => {
+  // 服务端渲染时不执行
+  if (typeof window === 'undefined' || typeof screen === 'undefined') return;
+
   try {
     // 使用类型断言避免TypeScript类型冲突
     const screenAny = screen as any;
@@ -119,9 +138,16 @@ const unlockOrientation = () => {
 
 // 移除竖屏视频优化样式
 const removeVerticalVideoOptimization = () => {
-  const existingStyle = document.getElementById('vertical-video-optimization');
-  if (existingStyle) {
-    existingStyle.remove();
+  // 服务端渲染时不执行
+  if (typeof document === 'undefined') return;
+
+  try {
+    const existingStyle = document.getElementById('vertical-video-optimization');
+    if (existingStyle) {
+      existingStyle.remove();
+    }
+  } catch (error) {
+    console.warn('移除竖屏视频优化样式失败:', error);
   }
 };
 
