@@ -163,11 +163,11 @@ const applyVerticalForceMode = () => {
       /* 强制竖屏模式样式 */
       @media (max-width: 768px) {
         .art-fullscreen-web.vertical-force-mode .art-video {
-          transform: rotate(90deg) !important;
+          transform: rotate(-90deg) !important;
           transform-origin: center center !important;
           width: 100vh !important;
           height: 100vw !important;
-          object-fit: cover !important;
+          object-fit: contain !important;
           position: absolute !important;
           top: 50% !important;
           left: 50% !important;
@@ -180,10 +180,12 @@ const applyVerticalForceMode = () => {
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
+          overflow: hidden !important;
         }
         
         .art-fullscreen-web.vertical-force-mode {
           background: #000 !important;
+          overflow: hidden !important;
         }
       }
     `;
