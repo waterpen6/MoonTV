@@ -151,43 +151,77 @@ const removeVerticalVideoOptimization = () => {
   }
 };
 
+// 动态设置视口尺寸CSS变量，解决vh/vw兼容性问题
+const setViewportDimensions = () => {
+  // 服务端渲染时不执行
+  if (typeof window === 'undefined') return;
+
+  try {
+    const vh = window.innerHeight * 0.01;
+    const vw = window.innerWidth * 0.01;
+    document.documentElement.style.setProperty('--vh', vh + 'px');
+    document.documentElement.style.setProperty('--vw', vw + 'px');
+    console.log('视口尺寸已更新:', { vh: vh + 'px', vw: vw + 'px' });
+  } catch (error) {
+    console.warn('设置视口尺寸失败:', error);
+  }
+};
+
 // 应用强制竖屏模式样式
 const applyVerticalForceMode = () => {
   // 服务端渲染时不执行
   if (typeof document === 'undefined') return;
 
   try {
+    // 先更新视口尺寸
+    setViewportDimensions();
+    
     const style = document.createElement('style');
     style.id = 'vertical-force-mode';
     style.textContent = `
       /* 强制竖屏模式样式 - 旋转整个播放器容器 */
       @media (max-width: 768px) {
-        /* 旋转整个播放器容器，模拟横屏设备 */
+        /* 外层容器：固定定位占满全屏，应用旋转 */
         .art-fullscreen-web.vertical-force-mode {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
           transform: rotate(90deg) !important;
           transform-origin: center center !important;
-          width: 100vh !important;
-          height: 100vw !important;
-          position: fixed !important;
-          top: 50% !important;
-          left: 50% !important;
-          margin: -50vw 0 0 -50vh !important;
           background: #000 !important;
           z-index: 2147483647 !important;
+          overflow: hidden !important;
         }
         
-        /* 视频元素保持默认行为，适配旋转后的容器 */
+        /* 播放器容器：在旋转后的空间内居中显示 */
+        .art-fullscreen-web.vertical-force-mode .art-video-player {
+          position: absolute !important;
+          top: 50% !important;
+          left: 50% !important;
+          width: calc(var(--vh, 1vh) * 100) !important;
+          height: calc(var(--vw, 1vw) * 100) !important;
+          transform: translate(-50%, -50%) !important;
+          max-width: none !important;
+          max-height: none !important;
+        }
+        
+        /* 视频元素：填满播放器容器 */
         .art-fullscreen-web.vertical-force-mode .art-video {
           width: 100% !important;
           height: 100% !important;
           object-fit: contain !important;
-          transform: none !important;
+          background: #000 !important;
         }
         
-        /* 播放器容器适配 */
-        .art-fullscreen-web.vertical-force-mode .art-video-player {
-          width: 100% !important;
-          height: 100% !important;
+        /* 控制栏和其他UI元素的适配 */
+        .art-fullscreen-web.vertical-force-mode .art-controls,
+        .art-fullscreen-web.vertical-force-mode .art-layers,
+        .art-fullscreen-web.vertical-force-mode .art-loading,
+        .art-fullscreen-web.vertical-force-mode .art-notice {
           transform: none !important;
         }
       }
@@ -810,12 +844,35 @@ function PlayPageClient() {
     updateVideoUrl(detail, currentEpisodeIndex);
   }, [detail, currentEpisodeIndex]);
 
-  // 检测移动设备
+  // 检测移动设备并设置视口尺寸监听
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const isMobile = detectMobileDevice();
       setIsMobileDevice(isMobile);
       console.log('移动设备检测结果:', isMobile);
+      
+      // 初始设置视口尺寸
+      setViewportDimensions();
+      
+      // 监听窗口尺寸和方向变化，动态更新视口尺寸
+      const handleResize = () => {
+        setViewportDimensions();
+      };
+      
+      const handleOrientationChange = () => {
+        // 延迟一下等待方向变化完成
+        setTimeout(() => {
+          setViewportDimensions();
+        }, 100);
+      };
+      
+      window.addEventListener('resize', handleResize);
+      window.addEventListener('orientationchange', handleOrientationChange);
+      
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('orientationchange', handleOrientationChange);
+      };
     }
   }, []);
 
