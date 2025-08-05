@@ -32,26 +32,36 @@ declare global {
   interface HTMLVideoElement {
     hls?: any;
   }
-
 }
 
 // 工具函数（组件外部定义，避免重复创建）
 // 检测移动设备
 const detectMobileDevice = (): boolean => {
   // 服务端渲染时返回false
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  if (typeof window === 'undefined' || typeof navigator === 'undefined')
+    return false;
 
   try {
     // 检测用户代理
     const userAgent = navigator.userAgent.toLowerCase();
-    const mobileKeywords = ['android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone'];
-    const isMobileUA = mobileKeywords.some(keyword => userAgent.includes(keyword));
+    const mobileKeywords = [
+      'android',
+      'iphone',
+      'ipad',
+      'ipod',
+      'blackberry',
+      'windows phone',
+    ];
+    const isMobileUA = mobileKeywords.some((keyword) =>
+      userAgent.includes(keyword)
+    );
 
     // 检测屏幕尺寸（移动设备通常小于768px）
     const isMobileScreen = window.innerWidth < 768;
 
     // 检测触摸支持
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isTouchDevice =
+      'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
     return isMobileUA || (isMobileScreen && isTouchDevice);
   } catch (error) {
@@ -92,7 +102,9 @@ const applyVerticalVideoOptimization = () => {
     `;
 
     // 移除旧的样式，添加新的
-    const existingStyle = document.getElementById('vertical-video-optimization');
+    const existingStyle = document.getElementById(
+      'vertical-video-optimization'
+    );
     if (existingStyle) {
       existingStyle.remove();
     }
@@ -108,7 +120,7 @@ const lockPortraitOrientation = async () => {
   if (typeof window === 'undefined' || typeof screen === 'undefined') return;
 
   try {
-    // 使用类型断言避免TypeScript类型冲突  
+    // 使用类型断言避免TypeScript类型冲突
     const screenAny = screen as any;
     if (screenAny.orientation && screenAny.orientation.lock) {
       await screenAny.orientation.lock('portrait');
@@ -142,7 +154,9 @@ const removeVerticalVideoOptimization = () => {
   if (typeof document === 'undefined') return;
 
   try {
-    const existingStyle = document.getElementById('vertical-video-optimization');
+    const existingStyle = document.getElementById(
+      'vertical-video-optimization'
+    );
     if (existingStyle) {
       existingStyle.remove();
     }
@@ -186,7 +200,7 @@ const requestTrueFullscreen = async (element: HTMLElement) => {
     else if ((element as any).msRequestFullscreen) {
       await (element as any).msRequestFullscreen();
     }
-    
+
     console.log('已请求真正的全屏显示');
     return true;
   } catch (error) {
@@ -213,7 +227,7 @@ const exitTrueFullscreen = async () => {
     else if ((document as any).msExitFullscreen) {
       await (document as any).msExitFullscreen();
     }
-    
+
     console.log('已退出真正的全屏显示');
     return true;
   } catch (error) {
@@ -240,12 +254,7 @@ const applyVerticalForceMode = () => {
   try {
     // 先更新视口尺寸
     setViewportDimensions();
-    
-    // 请求真正的全屏显示
-    if (artRef.current) {
-      requestTrueFullscreen(artRef.current);
-    }
-    
+
     const style = document.createElement('style');
     style.id = 'vertical-force-mode';
     style.textContent = `
@@ -367,7 +376,7 @@ const removeVerticalForceMode = () => {
     if (isTrueFullscreen()) {
       exitTrueFullscreen();
     }
-    
+
     // 移除CSS样式
     const existingStyle = document.getElementById('vertical-force-mode');
     if (existingStyle) {
@@ -549,18 +558,24 @@ function PlayPageClient() {
   // -----------------------------------------------------------------------------
 
   // 切换强制竖屏模式
-  const toggleVerticalForceMode = () => {
+  const toggleVerticalForceMode = async () => {
     if (!isMobileDevice) return; // 仅在移动设备上生效
-    
+
     const newMode = !isVerticalForceMode;
     setIsVerticalForceMode(newMode);
-    
+
     // 应用或移除样式
     if (newMode) {
       applyVerticalForceMode();
       // 添加CSS类到播放器容器
       if (artRef.current) {
         artRef.current.classList.add('vertical-force-mode');
+        // 请求真正的全屏显示
+        try {
+          await requestTrueFullscreen(artRef.current);
+        } catch (error) {
+          console.warn('请求全屏失败:', error);
+        }
       }
       console.log('已开启智能视频适配模式');
     } else {
@@ -974,21 +989,21 @@ function PlayPageClient() {
       const isMobile = detectMobileDevice();
       setIsMobileDevice(isMobile);
       console.log('移动设备检测结果:', isMobile);
-      
+
       // 初始设置视口尺寸
       setViewportDimensions();
-      
+
       // 监听窗口尺寸和方向变化，动态更新视口尺寸
       const handleResize = () => {
         setViewportDimensions();
         console.log('屏幕尺寸变化，已更新视口尺寸');
       };
-      
+
       const handleOrientationChange = () => {
         // 延迟一下等待方向变化完成
         setTimeout(() => {
           setViewportDimensions();
-          
+
           // 如果智能适配模式开启，重新应用样式以适配新方向
           if (isVerticalForceMode) {
             applyVerticalForceMode();
@@ -996,13 +1011,16 @@ function PlayPageClient() {
           }
         }, 100);
       };
-      
+
       window.addEventListener('resize', handleResize);
       window.addEventListener('orientationchange', handleOrientationChange);
-      
+
       return () => {
         window.removeEventListener('resize', handleResize);
-        window.removeEventListener('orientationchange', handleOrientationChange);
+        window.removeEventListener(
+          'orientationchange',
+          handleOrientationChange
+        );
       };
     }
   }, [isVerticalForceMode]);
@@ -1631,7 +1649,7 @@ function PlayPageClient() {
           console.log('换源后视频方向检测:', {
             宽度: video.videoWidth,
             高度: video.videoHeight,
-            竖屏: isVertical
+            竖屏: isVertical,
           });
 
           if (isMobileDevice && isVertical) {
@@ -1864,27 +1882,39 @@ function PlayPageClient() {
             },
           },
           // 竖屏播放按钮（仅移动设备显示）
-          ...(isMobileDevice ? [{
-            position: 'right',
-            index: 20,
-            name: 'verticalMode',
-            html: `<i class="art-icon flex"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          ...(isMobileDevice
+            ? [
+                {
+                  position: 'right',
+                  index: 20,
+                  name: 'verticalMode',
+                  html: `<i class="art-icon flex"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="6" y="3" width="10" height="16" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
               <path d="M9 7l2.5 2L9 11" stroke="currentColor" stroke-width="1.5" fill="none"/>
               <path d="M13 11l-2.5 2L13 15" stroke="currentColor" stroke-width="1.5" fill="none"/>
             </svg></i>`,
-            tooltip: isVerticalForceMode ? '退出智能适配' : '智能视频适配',
-            style: {
-              color: isVerticalForceMode ? '#22c55e' : 'inherit'
-            },
-            click: function () {
-              toggleVerticalForceMode();
-              // 更新按钮样式和提示
-              this.tooltip = isVerticalForceMode ? '退出智能适配' : '智能视频适配';
-              this.style.color = isVerticalForceMode ? '#22c55e' : 'inherit';
-              return isVerticalForceMode ? '已开启智能适配' : '已关闭智能适配';
-            },
-          }] : []),
+                  tooltip: isVerticalForceMode
+                    ? '退出智能适配'
+                    : '智能视频适配',
+                  style: {
+                    color: isVerticalForceMode ? '#22c55e' : 'inherit',
+                  },
+                  click: function () {
+                    toggleVerticalForceMode();
+                    // 更新按钮样式和提示
+                    this.tooltip = isVerticalForceMode
+                      ? '退出智能适配'
+                      : '智能视频适配';
+                    this.style.color = isVerticalForceMode
+                      ? '#22c55e'
+                      : 'inherit';
+                    return isVerticalForceMode
+                      ? '已开启智能适配'
+                      : '已关闭智能适配';
+                  },
+                },
+              ]
+            : []),
         ],
       });
 
@@ -1903,7 +1933,7 @@ function PlayPageClient() {
             宽度: video.videoWidth,
             高度: video.videoHeight,
             竖屏: isVertical,
-            移动设备: isMobileDevice
+            移动设备: isMobileDevice,
           });
 
           // 如果是移动设备上的竖屏视频，应用优化
