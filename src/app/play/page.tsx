@@ -70,6 +70,46 @@ const detectMobileDevice = (): boolean => {
   }
 };
 
+// 检测移动端浏览器类型和能力
+const detectMobileBrowser = () => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return {
+      isIOS: false,
+      isSafari: false,
+      isAndroid: false,
+      isChrome: false,
+      isFirefox: false,
+      supportsVideoFullscreen: false,
+    };
+  }
+
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua);
+  const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua);
+  const isAndroid = /Android/.test(ua);
+  const isChrome = /Chrome/.test(ua);
+  const isFirefox = /Firefox/.test(ua);
+
+  // 检测是否支持视频全屏API
+  const testVideo = document.createElement('video');
+  const supportsVideoFullscreen = !!(
+    testVideo.requestFullscreen ||
+    (testVideo as any).webkitRequestFullscreen ||
+    (testVideo as any).webkitEnterFullscreen ||
+    (testVideo as any).mozRequestFullScreen ||
+    (testVideo as any).msRequestFullscreen
+  );
+
+  return {
+    isIOS,
+    isSafari,
+    isAndroid,
+    isChrome,
+    isFirefox,
+    supportsVideoFullscreen,
+  };
+};
+
 // 检测视频是否为竖屏
 const detectVerticalVideo = (video: HTMLVideoElement): boolean => {
   if (!video || !video.videoWidth || !video.videoHeight) return false;
@@ -209,6 +249,103 @@ const requestTrueFullscreen = async (element: HTMLElement) => {
   }
 };
 
+// 移动端视频全屏 - 真正隐藏状态栏和导航栏的解决方案
+const requestMobileVideoFullscreen = async (videoElement: HTMLVideoElement) => {
+  if (!videoElement) {
+    console.warn('视频元素不存在');
+    return false;
+  }
+
+  try {
+    const browserInfo = detectMobileBrowser();
+    console.log('浏览器信息:', browserInfo);
+
+    // iOS Safari 专用方法 - 这是唯一能在iOS上隐藏状态栏的方法
+    if (browserInfo.isIOS && (videoElement as any).webkitEnterFullscreen) {
+      console.log('使用 iOS Safari webkitEnterFullscreen');
+      (videoElement as any).webkitEnterFullscreen();
+      return true;
+    }
+
+    // Android 和其他移动浏览器 - 对视频元素使用标准全屏API
+    if (videoElement.requestFullscreen) {
+      console.log('使用标准 requestFullscreen API');
+      await videoElement.requestFullscreen();
+      return true;
+    }
+
+    // Webkit前缀 (Android WebView, 一些版本的Chrome)
+    if ((videoElement as any).webkitRequestFullscreen) {
+      console.log('使用 webkitRequestFullscreen');
+      await (videoElement as any).webkitRequestFullscreen();
+      return true;
+    }
+
+    // Mozilla前缀 (Firefox)
+    if ((videoElement as any).mozRequestFullScreen) {
+      console.log('使用 mozRequestFullScreen');
+      await (videoElement as any).mozRequestFullScreen();
+      return true;
+    }
+
+    // MS前缀 (Edge)
+    if ((videoElement as any).msRequestFullscreen) {
+      console.log('使用 msRequestFullscreen');
+      await (videoElement as any).msRequestFullscreen();
+      return true;
+    }
+
+    console.warn('视频全屏 API 不被支持');
+    return false;
+  } catch (error) {
+    console.warn('视频全屏失败:', error);
+    return false;
+  }
+};
+
+// 退出移动端视频全屏
+const exitMobileVideoFullscreen = async () => {
+  try {
+    // 标准全屏API退出
+    if (document.fullscreenElement && document.exitFullscreen) {
+      await document.exitFullscreen();
+      return true;
+    }
+
+    // Webkit前缀 (Safari)
+    if (
+      (document as any).webkitFullscreenElement &&
+      (document as any).webkitExitFullscreen
+    ) {
+      await (document as any).webkitExitFullscreen();
+      return true;
+    }
+
+    // Mozilla前缀 (Firefox)
+    if (
+      (document as any).mozFullScreenElement &&
+      (document as any).mozCancelFullScreen
+    ) {
+      await (document as any).mozCancelFullScreen();
+      return true;
+    }
+
+    // MS前缀 (Edge)
+    if (
+      (document as any).msFullscreenElement &&
+      (document as any).msExitFullscreen
+    ) {
+      await (document as any).msExitFullscreen();
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.warn('退出视频全屏失败:', error);
+    return false;
+  }
+};
+
 // 退出真正的全屏显示
 const exitTrueFullscreen = async () => {
   try {
@@ -244,6 +381,88 @@ const isTrueFullscreen = (): boolean => {
     (document as any).mozFullScreenElement ||
     (document as any).msFullscreenElement
   );
+};
+
+// 设置移动端视频全屏事件监听器
+const setupMobileVideoFullscreenListeners = (
+  videoElement: HTMLVideoElement,
+  onFullscreenChange: (isFullscreen: boolean) => void
+) => {
+  if (!videoElement)
+    return () => {
+      // 空的清理函数，用于处理videoElement不存在的情况
+    };
+
+  const browserInfo = detectMobileBrowser();
+
+  // 清理函数数组
+  const cleanupFunctions: Array<() => void> = [];
+
+  // iOS Safari 特殊事件
+  if (browserInfo.isIOS) {
+    const handleWebkitBeginFullscreen = () => {
+      console.log('iOS 视频进入全屏');
+      onFullscreenChange(true);
+    };
+
+    const handleWebkitEndFullscreen = () => {
+      console.log('iOS 视频退出全屏');
+      onFullscreenChange(false);
+    };
+
+    videoElement.addEventListener(
+      'webkitbeginfullscreen',
+      handleWebkitBeginFullscreen
+    );
+    videoElement.addEventListener(
+      'webkitendfullscreen',
+      handleWebkitEndFullscreen
+    );
+
+    cleanupFunctions.push(() => {
+      videoElement.removeEventListener(
+        'webkitbeginfullscreen',
+        handleWebkitBeginFullscreen
+      );
+      videoElement.removeEventListener(
+        'webkitendfullscreen',
+        handleWebkitEndFullscreen
+      );
+    });
+  }
+
+  // 标准全屏事件（Android 和其他浏览器）
+  const handleFullscreenChange = () => {
+    const isFullscreen = !!(
+      document.fullscreenElement === videoElement ||
+      (document as any).webkitFullscreenElement === videoElement ||
+      (document as any).mozFullScreenElement === videoElement ||
+      (document as any).msFullscreenElement === videoElement
+    );
+
+    console.log('标准全屏状态变化:', isFullscreen);
+    onFullscreenChange(isFullscreen);
+  };
+
+  // 监听多种全屏变化事件
+  const events = [
+    'fullscreenchange',
+    'webkitfullscreenchange',
+    'mozfullscreenchange',
+    'msfullscreenchange',
+  ];
+
+  events.forEach((event) => {
+    document.addEventListener(event, handleFullscreenChange);
+    cleanupFunctions.push(() => {
+      document.removeEventListener(event, handleFullscreenChange);
+    });
+  });
+
+  // 返回清理函数
+  return () => {
+    cleanupFunctions.forEach((cleanup) => cleanup());
+  };
 };
 
 // 应用智能视频适配模式
@@ -552,39 +771,81 @@ function PlayPageClient() {
 
   const artPlayerRef = useRef<any>(null);
   const artRef = useRef<HTMLDivElement | null>(null);
+  const fullscreenListenerCleanup = useRef<(() => void) | null>(null);
 
   // -----------------------------------------------------------------------------
   // 播放源优选函数
   // -----------------------------------------------------------------------------
 
-  // 切换强制竖屏模式
+  // 切换强制竖屏模式 - 重新设计为视频元素全屏
   const toggleVerticalForceMode = async () => {
     if (!isMobileDevice) return; // 仅在移动设备上生效
 
     const newMode = !isVerticalForceMode;
-    setIsVerticalForceMode(newMode);
 
-    // 应用或移除样式
     if (newMode) {
-      applyVerticalForceMode();
-      // 添加CSS类到播放器容器
-      if (artRef.current) {
-        artRef.current.classList.add('vertical-force-mode');
-        // 请求真正的全屏显示
-        try {
-          await requestTrueFullscreen(artRef.current);
-        } catch (error) {
-          console.warn('请求全屏失败:', error);
+      // 开启智能适配模式
+      console.log('开启智能视频适配模式...');
+
+      // 获取视频元素 - 这是关键改进：对视频而不是容器操作
+      const videoElement = artPlayerRef.current?.video as HTMLVideoElement;
+      if (!videoElement) {
+        console.warn('无法获取视频元素');
+        return;
+      }
+
+      try {
+        // 首先尝试移动端视频全屏 - 真正隐藏状态栏和导航栏
+        const videoFullscreenSuccess = await requestMobileVideoFullscreen(
+          videoElement
+        );
+
+        if (videoFullscreenSuccess) {
+          console.log('✅ 视频全屏成功，将隐藏状态栏和导航栏');
+          setIsVerticalForceMode(true);
+
+          // 视频全屏成功时，iOS Safari 和 Android 原生全屏会自动处理布局
+          // 不需要额外的CSS样式
+        } else {
+          console.log('❌ 视频全屏失败，回退到CSS方案');
+
+          // Fallback: 使用CSS方案 + 容器全屏
+          applyVerticalForceMode();
+          if (artRef.current) {
+            artRef.current.classList.add('vertical-force-mode');
+
+            // 尝试容器全屏作为备选方案
+            try {
+              await requestTrueFullscreen(artRef.current);
+              console.log('📱 容器全屏成功');
+            } catch (error) {
+              console.warn('📱 容器全屏也失败:', error);
+            }
+          }
+          setIsVerticalForceMode(true);
         }
+      } catch (error) {
+        console.error('智能适配模式启用失败:', error);
       }
-      console.log('已开启智能视频适配模式');
     } else {
-      removeVerticalForceMode();
-      // 移除CSS类
-      if (artRef.current) {
-        artRef.current.classList.remove('vertical-force-mode');
+      // 关闭智能适配模式
+      console.log('关闭智能视频适配模式...');
+
+      try {
+        // 尝试退出视频全屏
+        await exitMobileVideoFullscreen();
+
+        // 清理CSS样式和类
+        removeVerticalForceMode();
+        if (artRef.current) {
+          artRef.current.classList.remove('vertical-force-mode');
+        }
+
+        setIsVerticalForceMode(false);
+        console.log('✅ 已关闭智能视频适配模式');
+      } catch (error) {
+        console.error('退出智能适配模式失败:', error);
       }
-      console.log('已关闭智能视频适配模式');
     }
   };
 
@@ -1921,6 +2182,36 @@ function PlayPageClient() {
       // 监听播放器事件
       artPlayerRef.current.on('ready', () => {
         setError(null);
+
+        // 设置移动端视频全屏事件监听器
+        const videoElement = artPlayerRef.current?.video as HTMLVideoElement;
+        if (videoElement && isMobileDevice) {
+          console.log('设置移动端视频全屏事件监听器');
+
+          // 清理之前的监听器（如果存在）
+          if (fullscreenListenerCleanup.current) {
+            fullscreenListenerCleanup.current();
+          }
+
+          // 设置新的监听器
+          fullscreenListenerCleanup.current =
+            setupMobileVideoFullscreenListeners(
+              videoElement,
+              (isFullscreen) => {
+                console.log('全屏状态变化:', isFullscreen);
+
+                // 同步更新智能适配状态
+                if (!isFullscreen && isVerticalForceMode) {
+                  console.log('全屏退出，重置智能适配状态');
+                  setIsVerticalForceMode(false);
+                  removeVerticalForceMode();
+                  if (artRef.current) {
+                    artRef.current.classList.remove('vertical-force-mode');
+                  }
+                }
+              }
+            );
+        }
       });
 
       // 监听视频元数据加载完成事件，检测视频方向
@@ -2105,11 +2396,16 @@ function PlayPageClient() {
     }
   }, [Artplayer, Hls, videoUrl, loading, blockAdEnabled]);
 
-  // 当组件卸载时清理定时器
+  // 当组件卸载时清理定时器和监听器
   useEffect(() => {
     return () => {
       if (saveIntervalRef.current) {
         clearInterval(saveIntervalRef.current);
+      }
+      // 清理全屏监听器
+      if (fullscreenListenerCleanup.current) {
+        fullscreenListenerCleanup.current();
+        fullscreenListenerCleanup.current = null;
       }
       // 清理竖屏视频优化样式
       removeVerticalVideoOptimization();
