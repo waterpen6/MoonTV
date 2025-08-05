@@ -179,9 +179,9 @@ const applyVerticalForceMode = () => {
     const style = document.createElement('style');
     style.id = 'vertical-force-mode';
     style.textContent = `
-      /* 强制竖屏模式样式 - 旋转整个播放器容器 */
+      /* 真正的竖屏播放模式 - 只旋转视频内容，保持UI正常 */
       @media (max-width: 768px) {
-        /* 外层容器：固定定位占满全屏，应用旋转 */
+        /* 播放器容器保持正常全屏，不旋转 */
         .art-fullscreen-web.vertical-force-mode {
           position: fixed !important;
           top: 0 !important;
@@ -190,39 +190,50 @@ const applyVerticalForceMode = () => {
           bottom: 0 !important;
           width: 100% !important;
           height: 100% !important;
-          transform: rotate(90deg) !important;
-          transform-origin: center center !important;
           background: #000 !important;
           z-index: 2147483647 !important;
           overflow: hidden !important;
+          /* 不旋转容器，保持UI正常方向 */
         }
         
-        /* 播放器容器：在旋转后的空间内居中显示 */
+        /* 播放器容器保持正常布局 */
         .art-fullscreen-web.vertical-force-mode .art-video-player {
-          position: absolute !important;
-          top: 50% !important;
-          left: 50% !important;
-          width: calc(var(--vh, 1vh) * 100) !important;
-          height: calc(var(--vw, 1vw) * 100) !important;
-          transform: translate(-50%, -50%) !important;
-          max-width: none !important;
-          max-height: none !important;
-        }
-        
-        /* 视频元素：填满播放器容器 */
-        .art-fullscreen-web.vertical-force-mode .art-video {
           width: 100% !important;
           height: 100% !important;
+          position: relative !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+        }
+        
+        /* 只旋转视频元素，实现真正的竖屏播放 */
+        .art-fullscreen-web.vertical-force-mode .art-video {
+          transform: rotate(90deg) !important;
+          transform-origin: center center !important;
+          /* 旋转后尺寸交换：视频的宽度变成屏幕的高度维度 */
+          width: calc(var(--vh, 1vh) * 100) !important;
+          height: calc(var(--vw, 1vw) * 100) !important;
+          max-width: calc(var(--vh, 1vh) * 100) !important;
+          max-height: calc(var(--vw, 1vw) * 100) !important;
           object-fit: contain !important;
           background: #000 !important;
         }
         
-        /* 控制栏和其他UI元素的适配 */
+        /* 控制栏和其他UI元素保持正常方向 */
         .art-fullscreen-web.vertical-force-mode .art-controls,
         .art-fullscreen-web.vertical-force-mode .art-layers,
         .art-fullscreen-web.vertical-force-mode .art-loading,
         .art-fullscreen-web.vertical-force-mode .art-notice {
-          transform: none !important;
+          position: absolute !important;
+          /* UI元素保持正常方向，不旋转 */
+        }
+        
+        /* 确保控制栏在底部正常显示 */
+        .art-fullscreen-web.vertical-force-mode .art-controls {
+          bottom: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          width: 100% !important;
         }
       }
     `;
@@ -233,7 +244,7 @@ const applyVerticalForceMode = () => {
       existingStyle.remove();
     }
     document.head.appendChild(style);
-    console.log('强制竖屏模式样式已应用');
+    console.log('真正的竖屏播放模式样式已应用');
   } catch (error) {
     console.warn('应用强制竖屏模式样式失败:', error);
   }
@@ -438,14 +449,14 @@ function PlayPageClient() {
       if (artRef.current) {
         artRef.current.classList.add('vertical-force-mode');
       }
-      console.log('已开启强制竖屏模式');
+      console.log('已开启竖屏播放模式');
     } else {
       removeVerticalForceMode();
       // 移除CSS类
       if (artRef.current) {
         artRef.current.classList.remove('vertical-force-mode');
       }
-      console.log('已关闭强制竖屏模式');
+      console.log('已关闭竖屏播放模式');
     }
   };
 
@@ -1742,16 +1753,16 @@ function PlayPageClient() {
               <path d="M9 7l2.5 2L9 11" stroke="currentColor" stroke-width="1.5" fill="none"/>
               <path d="M13 11l-2.5 2L13 15" stroke="currentColor" stroke-width="1.5" fill="none"/>
             </svg></i>`,
-            tooltip: isVerticalForceMode ? '退出竖屏模式' : '强制竖屏播放',
+            tooltip: isVerticalForceMode ? '退出竖屏播放' : '竖屏播放模式',
             style: {
               color: isVerticalForceMode ? '#22c55e' : 'inherit'
             },
             click: function () {
               toggleVerticalForceMode();
               // 更新按钮样式和提示
-              this.tooltip = isVerticalForceMode ? '退出竖屏模式' : '强制竖屏播放';
+              this.tooltip = isVerticalForceMode ? '退出竖屏播放' : '竖屏播放模式';
               this.style.color = isVerticalForceMode ? '#22c55e' : 'inherit';
-              return isVerticalForceMode ? '已开启竖屏模式' : '已关闭竖屏模式';
+              return isVerticalForceMode ? '已开启竖屏播放' : '已关闭竖屏播放';
             },
           }] : []),
         ],
@@ -1801,7 +1812,7 @@ function PlayPageClient() {
           if (artRef.current) {
             artRef.current.classList.remove('vertical-force-mode');
           }
-          console.log('退出全屏，已重置竖屏强制模式');
+          console.log('退出全屏，已重置竖屏播放模式');
         }
       });
 
