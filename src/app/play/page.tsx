@@ -167,7 +167,7 @@ const setViewportDimensions = () => {
   }
 };
 
-// 应用强制竖屏模式样式
+// 应用智能视频适配模式
 const applyVerticalForceMode = () => {
   // 服务端渲染时不执行
   if (typeof document === 'undefined') return;
@@ -179,62 +179,71 @@ const applyVerticalForceMode = () => {
     const style = document.createElement('style');
     style.id = 'vertical-force-mode';
     style.textContent = `
-      /* 真正的竖屏播放模式 - 只旋转视频内容，保持UI正常 */
-      @media (max-width: 768px) {
-        /* 播放器容器保持正常全屏，不旋转 */
-        .art-fullscreen-web.vertical-force-mode {
-          position: fixed !important;
-          top: 0 !important;
-          left: 0 !important;
-          right: 0 !important;
-          bottom: 0 !important;
-          width: 100% !important;
-          height: 100% !important;
-          background: #000 !important;
-          z-index: 2147483647 !important;
-          overflow: hidden !important;
-          /* 不旋转容器，保持UI正常方向 */
-        }
-        
-        /* 播放器容器保持正常布局 */
-        .art-fullscreen-web.vertical-force-mode .art-video-player {
-          width: 100% !important;
-          height: 100% !important;
-          position: relative !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-        }
-        
-        /* 只旋转视频元素，实现真正的竖屏播放 */
+      /* 智能视频适配模式 - 根据设备方向优化显示 */
+      
+      /* 基础全屏容器 */
+      .art-fullscreen-web.vertical-force-mode {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: #000 !important;
+        z-index: 2147483647 !important;
+        overflow: hidden !important;
+      }
+      
+      /* 播放器容器 - 使用flexbox智能居中 */
+      .art-fullscreen-web.vertical-force-mode .art-video-player {
+        width: 100% !important;
+        height: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: relative !important;
+      }
+      
+      /* 竖屏设备优化 */
+      @media screen and (orientation: portrait) and (max-width: 768px) {
         .art-fullscreen-web.vertical-force-mode .art-video {
-          transform: rotate(90deg) !important;
-          transform-origin: center center !important;
-          /* 旋转后尺寸交换：视频的宽度变成屏幕的高度维度 */
-          width: calc(var(--vh, 1vh) * 100) !important;
-          height: calc(var(--vw, 1vw) * 100) !important;
-          max-width: calc(var(--vh, 1vh) * 100) !important;
-          max-height: calc(var(--vw, 1vw) * 100) !important;
+          /* 竖屏模式：让视频智能适配竖屏空间 */
+          width: 100vw !important;
+          height: auto !important;
+          max-height: 100vh !important;
           object-fit: contain !important;
-          background: #000 !important;
+          object-position: center !important;
+          transform: none !important; /* 不旋转 */
         }
-        
-        /* 控制栏和其他UI元素保持正常方向 */
-        .art-fullscreen-web.vertical-force-mode .art-controls,
-        .art-fullscreen-web.vertical-force-mode .art-layers,
-        .art-fullscreen-web.vertical-force-mode .art-loading,
-        .art-fullscreen-web.vertical-force-mode .art-notice {
-          position: absolute !important;
-          /* UI元素保持正常方向，不旋转 */
+      }
+      
+      /* 横屏设备优化 */
+      @media screen and (orientation: landscape) and (max-width: 768px) {
+        .art-fullscreen-web.vertical-force-mode .art-video {
+          /* 横屏模式：充分利用横屏空间 */
+          width: 100vw !important;
+          height: 100vh !important;
+          object-fit: contain !important;
+          object-position: center !important;
+          transform: none !important; /* 不旋转 */
         }
-        
-        /* 确保控制栏在底部正常显示 */
-        .art-fullscreen-web.vertical-force-mode .art-controls {
-          bottom: 0 !important;
-          left: 0 !important;
-          right: 0 !important;
-          width: 100% !important;
-        }
+      }
+      
+      /* 控制栏和UI元素始终保持正常 */
+      .art-fullscreen-web.vertical-force-mode .art-controls {
+        position: absolute !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        z-index: 1000 !important;
+      }
+      
+      .art-fullscreen-web.vertical-force-mode .art-layers,
+      .art-fullscreen-web.vertical-force-mode .art-loading,
+      .art-fullscreen-web.vertical-force-mode .art-notice {
+        position: absolute !important;
       }
     `;
 
@@ -244,9 +253,9 @@ const applyVerticalForceMode = () => {
       existingStyle.remove();
     }
     document.head.appendChild(style);
-    console.log('真正的竖屏播放模式样式已应用');
+    console.log('智能视频适配模式已应用');
   } catch (error) {
-    console.warn('应用强制竖屏模式样式失败:', error);
+    console.warn('应用智能视频适配模式失败:', error);
   }
 };
 
@@ -449,14 +458,14 @@ function PlayPageClient() {
       if (artRef.current) {
         artRef.current.classList.add('vertical-force-mode');
       }
-      console.log('已开启竖屏播放模式');
+      console.log('已开启智能视频适配模式');
     } else {
       removeVerticalForceMode();
       // 移除CSS类
       if (artRef.current) {
         artRef.current.classList.remove('vertical-force-mode');
       }
-      console.log('已关闭竖屏播放模式');
+      console.log('已关闭智能视频适配模式');
     }
   };
 
@@ -868,12 +877,19 @@ function PlayPageClient() {
       // 监听窗口尺寸和方向变化，动态更新视口尺寸
       const handleResize = () => {
         setViewportDimensions();
+        console.log('屏幕尺寸变化，已更新视口尺寸');
       };
       
       const handleOrientationChange = () => {
         // 延迟一下等待方向变化完成
         setTimeout(() => {
           setViewportDimensions();
+          
+          // 如果智能适配模式开启，重新应用样式以适配新方向
+          if (isVerticalForceMode) {
+            applyVerticalForceMode();
+            console.log('设备方向变化，已重新应用智能适配');
+          }
         }, 100);
       };
       
@@ -885,7 +901,7 @@ function PlayPageClient() {
         window.removeEventListener('orientationchange', handleOrientationChange);
       };
     }
-  }, []);
+  }, [isVerticalForceMode]);
 
   // 进入页面时直接获取全部源信息
   useEffect(() => {
@@ -1753,16 +1769,16 @@ function PlayPageClient() {
               <path d="M9 7l2.5 2L9 11" stroke="currentColor" stroke-width="1.5" fill="none"/>
               <path d="M13 11l-2.5 2L13 15" stroke="currentColor" stroke-width="1.5" fill="none"/>
             </svg></i>`,
-            tooltip: isVerticalForceMode ? '退出竖屏播放' : '竖屏播放模式',
+            tooltip: isVerticalForceMode ? '退出智能适配' : '智能视频适配',
             style: {
               color: isVerticalForceMode ? '#22c55e' : 'inherit'
             },
             click: function () {
               toggleVerticalForceMode();
               // 更新按钮样式和提示
-              this.tooltip = isVerticalForceMode ? '退出竖屏播放' : '竖屏播放模式';
+              this.tooltip = isVerticalForceMode ? '退出智能适配' : '智能视频适配';
               this.style.color = isVerticalForceMode ? '#22c55e' : 'inherit';
-              return isVerticalForceMode ? '已开启竖屏播放' : '已关闭竖屏播放';
+              return isVerticalForceMode ? '已开启智能适配' : '已关闭智能适配';
             },
           }] : []),
         ],
@@ -1812,7 +1828,7 @@ function PlayPageClient() {
           if (artRef.current) {
             artRef.current.classList.remove('vertical-force-mode');
           }
-          console.log('退出全屏，已重置竖屏播放模式');
+          console.log('退出全屏，已重置智能视频适配模式');
         }
       });
 
