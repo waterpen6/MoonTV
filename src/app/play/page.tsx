@@ -179,71 +179,64 @@ const applyVerticalForceMode = () => {
     const style = document.createElement('style');
     style.id = 'vertical-force-mode';
     style.textContent = `
-      /* 智能视频适配模式 - 根据设备方向优化显示 */
-      
-      /* 基础全屏容器 */
-      .art-fullscreen-web.vertical-force-mode {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        background: #000 !important;
-        z-index: 2147483647 !important;
-        overflow: hidden !important;
-      }
-      
-      /* 播放器容器 - 使用flexbox智能居中 */
-      .art-fullscreen-web.vertical-force-mode .art-video-player {
-        width: 100% !important;
-        height: 100% !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        position: relative !important;
-      }
-      
-      /* 竖屏设备优化 */
-      @media screen and (orientation: portrait) and (max-width: 768px) {
+      /* 智能视频适配模式 - 移动端竖屏优化 */
+      @media (max-width: 768px) {
+        /* 全屏容器 */
+        .art-fullscreen-web.vertical-force-mode {
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          background: #000 !important;
+          z-index: 2147483647 !important;
+          overflow: hidden !important;
+        }
+        
+        /* 播放器容器 - 智能居中 */
+        .art-fullscreen-web.vertical-force-mode .art-video-player {
+          width: 100% !important;
+          height: 100% !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          position: relative !important;
+        }
+        
+        /* 视频适配 - 自适应填满屏幕但保持比例 */
         .art-fullscreen-web.vertical-force-mode .art-video {
-          /* 竖屏模式：让视频智能适配竖屏空间 */
-          width: 100vw !important;
-          height: auto !important;
-          max-height: 100vh !important;
+          max-width: 100% !important;
+          max-height: 100% !important;
+          width: 100% !important;
+          height: 100% !important;
           object-fit: contain !important;
           object-position: center !important;
-          transform: none !important; /* 不旋转 */
+          transform: none !important; /* 确保不旋转 */
         }
-      }
-      
-      /* 横屏设备优化 */
-      @media screen and (orientation: landscape) and (max-width: 768px) {
-        .art-fullscreen-web.vertical-force-mode .art-video {
-          /* 横屏模式：充分利用横屏空间 */
-          width: 100vw !important;
-          height: 100vh !important;
-          object-fit: contain !important;
-          object-position: center !important;
-          transform: none !important; /* 不旋转 */
+        
+        /* 控制栏正常显示 */
+        .art-fullscreen-web.vertical-force-mode .art-controls {
+          position: absolute !important;
+          bottom: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          width: 100% !important;
+          z-index: 1000 !important;
         }
-      }
-      
-      /* 控制栏和UI元素始终保持正常 */
-      .art-fullscreen-web.vertical-force-mode .art-controls {
-        position: absolute !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        width: 100% !important;
-        z-index: 1000 !important;
-      }
-      
-      .art-fullscreen-web.vertical-force-mode .art-layers,
-      .art-fullscreen-web.vertical-force-mode .art-loading,
-      .art-fullscreen-web.vertical-force-mode .art-notice {
-        position: absolute !important;
+        
+        /* 其他UI元素 */
+        .art-fullscreen-web.vertical-force-mode .art-layers,
+        .art-fullscreen-web.vertical-force-mode .art-loading,
+        .art-fullscreen-web.vertical-force-mode .art-notice {
+          position: absolute !important;
+        }
+        
+        /* 隐藏播放器自带的全屏按钮，只保留我们的适配按钮 */
+        .art-fullscreen-web.vertical-force-mode .art-control-fullscreen {
+          display: none !important;
+        }
       }
     `;
 
@@ -253,7 +246,7 @@ const applyVerticalForceMode = () => {
       existingStyle.remove();
     }
     document.head.appendChild(style);
-    console.log('智能视频适配模式已应用');
+    console.log('智能视频适配模式已应用 - 无旋转纯适配');
   } catch (error) {
     console.warn('应用智能视频适配模式失败:', error);
   }
@@ -1589,7 +1582,7 @@ function PlayPageClient() {
         lang: 'zh-cn',
         hotkey: false,
         fastForward: true,
-        autoOrientation: true,
+        autoOrientation: false, // 关闭自动旋转，解决强制横屏问题
         lock: true,
         moreVideoAttr: {
           crossOrigin: 'anonymous',
