@@ -167,6 +167,71 @@ const setViewportDimensions = () => {
   }
 };
 
+// 请求真正的全屏显示（隐藏状态栏和导航栏）
+const requestTrueFullscreen = async (element: HTMLElement) => {
+  try {
+    // 标准Fullscreen API
+    if (element.requestFullscreen) {
+      await element.requestFullscreen();
+    }
+    // Webkit前缀 (Safari)
+    else if ((element as any).webkitRequestFullscreen) {
+      await (element as any).webkitRequestFullscreen();
+    }
+    // Mozilla前缀 (Firefox)
+    else if ((element as any).mozRequestFullScreen) {
+      await (element as any).mozRequestFullScreen();
+    }
+    // MS前缀 (Edge)
+    else if ((element as any).msRequestFullscreen) {
+      await (element as any).msRequestFullscreen();
+    }
+    
+    console.log('已请求真正的全屏显示');
+    return true;
+  } catch (error) {
+    console.warn('请求全屏失败:', error);
+    return false;
+  }
+};
+
+// 退出真正的全屏显示
+const exitTrueFullscreen = async () => {
+  try {
+    if (document.exitFullscreen) {
+      await document.exitFullscreen();
+    }
+    // Webkit前缀 (Safari)
+    else if ((document as any).webkitExitFullscreen) {
+      await (document as any).webkitExitFullscreen();
+    }
+    // Mozilla前缀 (Firefox)
+    else if ((document as any).mozCancelFullScreen) {
+      await (document as any).mozCancelFullScreen();
+    }
+    // MS前缀 (Edge)
+    else if ((document as any).msExitFullscreen) {
+      await (document as any).msExitFullscreen();
+    }
+    
+    console.log('已退出真正的全屏显示');
+    return true;
+  } catch (error) {
+    console.warn('退出全屏失败:', error);
+    return false;
+  }
+};
+
+// 检测是否处于真正的全屏状态
+const isTrueFullscreen = (): boolean => {
+  return !!(
+    document.fullscreenElement ||
+    (document as any).webkitFullscreenElement ||
+    (document as any).mozFullScreenElement ||
+    (document as any).msFullscreenElement
+  );
+};
+
 // 应用智能视频适配模式
 const applyVerticalForceMode = () => {
   // 服务端渲染时不执行
@@ -176,12 +241,17 @@ const applyVerticalForceMode = () => {
     // 先更新视口尺寸
     setViewportDimensions();
     
+    // 请求真正的全屏显示
+    if (artRef.current) {
+      requestTrueFullscreen(artRef.current);
+    }
+    
     const style = document.createElement('style');
     style.id = 'vertical-force-mode';
     style.textContent = `
-      /* 智能视频适配模式 - 移动端竖屏优化 */
+      /* 智能视频适配模式 - 移动端真正全屏 */
       @media (max-width: 768px) {
-        /* 全屏容器 */
+        /* 全屏容器 - 覆盖状态栏和导航栏 */
         .art-fullscreen-web.vertical-force-mode {
           position: fixed !important;
           top: 0 !important;
@@ -190,12 +260,27 @@ const applyVerticalForceMode = () => {
           bottom: 0 !important;
           width: 100% !important;
           height: 100% !important;
+          width: 100vw !important;
+          height: 100vh !important;
           background: #000 !important;
           z-index: 2147483647 !important;
           overflow: hidden !important;
+          
+          /* 处理安全区域 - 扩展到刘海屏和圆角区域 */
+          padding-top: env(safe-area-inset-top) !important;
+          padding-bottom: env(safe-area-inset-bottom) !important;
+          padding-left: env(safe-area-inset-left) !important;
+          padding-right: env(safe-area-inset-right) !important;
+          
+          /* iOS Safari特殊处理 */
+          -webkit-overflow-scrolling: touch !important;
+          
+          /* 确保覆盖所有UI */
+          top: env(safe-area-inset-top, 0) !important;
+          bottom: env(safe-area-inset-bottom, 0) !important;
         }
         
-        /* 播放器容器 - 智能居中 */
+        /* 播放器容器 - 智能居中，考虑安全区域 */
         .art-fullscreen-web.vertical-force-mode .art-video-player {
           width: 100% !important;
           height: 100% !important;
@@ -203,9 +288,14 @@ const applyVerticalForceMode = () => {
           align-items: center !important;
           justify-content: center !important;
           position: relative !important;
+          
+          /* 避免安全区域遮挡 */
+          padding-top: env(safe-area-inset-top, 0) !important;
+          padding-bottom: env(safe-area-inset-bottom, 0) !important;
+          box-sizing: border-box !important;
         }
         
-        /* 视频适配 - 自适应填满屏幕但保持比例 */
+        /* 视频适配 - 在安全区域内自适应填满 */
         .art-fullscreen-web.vertical-force-mode .art-video {
           max-width: 100% !important;
           max-height: 100% !important;
@@ -216,14 +306,15 @@ const applyVerticalForceMode = () => {
           transform: none !important; /* 确保不旋转 */
         }
         
-        /* 控制栏正常显示 */
+        /* 控制栏 - 考虑底部安全区域 */
         .art-fullscreen-web.vertical-force-mode .art-controls {
           position: absolute !important;
-          bottom: 0 !important;
-          left: 0 !important;
-          right: 0 !important;
-          width: 100% !important;
+          bottom: env(safe-area-inset-bottom, 0) !important;
+          left: env(safe-area-inset-left, 0) !important;
+          right: env(safe-area-inset-right, 0) !important;
+          width: calc(100% - env(safe-area-inset-left, 0) - env(safe-area-inset-right, 0)) !important;
           z-index: 1000 !important;
+          padding-bottom: env(safe-area-inset-bottom, 0) !important;
         }
         
         /* 其他UI元素 */
@@ -238,6 +329,20 @@ const applyVerticalForceMode = () => {
           display: none !important;
         }
       }
+      
+      /* 处理横屏方向的安全区域 */
+      @media (max-width: 768px) and (orientation: landscape) {
+        .art-fullscreen-web.vertical-force-mode {
+          padding-left: env(safe-area-inset-left) !important;
+          padding-right: env(safe-area-inset-right) !important;
+        }
+        
+        .art-fullscreen-web.vertical-force-mode .art-controls {
+          left: env(safe-area-inset-left, 0) !important;
+          right: env(safe-area-inset-right, 0) !important;
+          width: calc(100% - env(safe-area-inset-left, 0) - env(safe-area-inset-right, 0)) !important;
+        }
+      }
     `;
 
     // 移除旧样式，添加新样式
@@ -246,7 +351,7 @@ const applyVerticalForceMode = () => {
       existingStyle.remove();
     }
     document.head.appendChild(style);
-    console.log('智能视频适配模式已应用 - 无旋转纯适配');
+    console.log('智能视频适配模式已应用 - 真正全屏 + 安全区域处理');
   } catch (error) {
     console.warn('应用智能视频适配模式失败:', error);
   }
@@ -258,13 +363,19 @@ const removeVerticalForceMode = () => {
   if (typeof document === 'undefined') return;
 
   try {
+    // 退出真正的全屏显示
+    if (isTrueFullscreen()) {
+      exitTrueFullscreen();
+    }
+    
+    // 移除CSS样式
     const existingStyle = document.getElementById('vertical-force-mode');
     if (existingStyle) {
       existingStyle.remove();
-      console.log('强制竖屏模式样式已移除');
+      console.log('智能视频适配模式样式已移除');
     }
   } catch (error) {
-    console.warn('移除强制竖屏模式样式失败:', error);
+    console.warn('移除智能视频适配模式失败:', error);
   }
 };
 
